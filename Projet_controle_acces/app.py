@@ -51,16 +51,18 @@ def delete():
 def demande_autorisation():
     if request.method == "POST":
         uid = request.form["uid"]
-        zone = request.form["zone"]
+        zone = int(request.form["zone"])
         co = get_connection()
         curseur = co.cursor()
-        requete = "SELECT users.nom FROM users WHERE code_carte = %s"
+        requete = "SELECT nom, z_bureaux, z_stock, z_info, z_technique FROM users WHERE code_carte = %s"
         curseur.execute(requete, (uid))
-        autorisation = curseur.fetchall()
-        print(autorisation)
-        print(zone)
-        return "nom"
-    return "Pas de requete post"
+        reponse = curseur.fetchone()
+        zone_autorisation = {1 : "z_bureaux", 2 : "z_stock", 3 : "z_info", 4 : "z_technique"}
+        zone_demande = zone_autorisation.get(zone)
+        autorisation = reponse.get(zone_demande)
+        nom = reponse.get("nom")
+        return {"nom": nom, "zone": zone, "autorisation": autorisation}
+    return "Requete POST nécessaire"
 
 #***********************************************************************************
 
@@ -94,5 +96,5 @@ def ajouter_utilisateur():
     return render_template("ajouter_utilisateur.html")
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host='0.0.0.0', debug=True)
 
