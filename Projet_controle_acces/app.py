@@ -82,26 +82,38 @@ def demande_autorisation():
     #print("Headers:", request.headers)
     #print("Raw data:", request.get_data())
     #print("Form:", request.form)
-    zones = {1:"z_bureaux", 2:"z_stock", 3:"z_info", 4:"z_technique"}
     uid = request.form['uid']
-    zone = request.form['zone']
-    nomZone=zones[int(zone)]
+    zone = int(request.form['zone'])
     print("******Parametres reçus du lecteur de badge: zone=",zone,"uid=",uid,"******")
-    print("Nom de la zone d'implantation du lecteur:",nomZone)
+    print("Nom de la zone d'implantation du lecteur:")
     co = get_connection()
     if co:
         curseur = co.cursor()
-        requete = f"SELECT nom, {nomZone} FROM users WHERE code_carte=%s"
-        curseur.execute(requete, uid)
+        requete = "SELECT nom FROM users INNER JOIN users_zones ON users.id = users_zones.id_user WHERE users.code_carte=%s AND users_zones.id_zone = %s"
+        curseur.execute(requete, (uid, zone))
         reponse = curseur.fetchone()
         print("Reponse de la Bdd:",reponse)
         curseur.close()
         co.close()
 
         if reponse==None:
-            return "inconnu"
-        reponseJson = {"nom": reponse['nom'], "zone": zone, "autorisation": reponse[nomZone]}
-        print(reponseJson)
+            reponseJson = {"nom": uid, "zone": zone, "autorisation": 0}
+            co = get_connection()
+            curseur = co.cursor()
+            requete = "INSERT INTO logs_acces (id_user, id_zone, acces_autorise) SELECT id, %s, 0 FROM users WHERE code_carte=%s"
+            curseur.execute(requete, (zone, uid))
+            co.commit()
+            curseur.close()
+            co.close()
+            return reponseJson
+        reponseJson = {"nom": reponse['nom'], "zone": zone, "autorisation": 1}
+        co = get_connection()
+        curseur = co.cursor()
+        requete = "INSERT INTO logs_acces (id_user, id_zone, acces_autorise) SELECT id, %s, 1 FROM users WHERE code_carte=%s"
+        curseur.execute(requete, (zone, uid))
+        co.commit()
+        curseur.close()
+        co.close()
         return reponseJson
 
     else:
